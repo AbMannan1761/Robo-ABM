@@ -18,6 +18,7 @@ import HolographicGlobe from './components/HolographicGlobe';
 import SystemHUD from './components/SystemHUD';
 import CommandConsole from './components/CommandConsole';
 import SettingsModal from './components/SettingsModal';
+import { clientAIBrain } from './services/aiBrain';
 
 const API_BASE = 'http://127.0.0.1:5800';
 
@@ -227,6 +228,82 @@ function App() {
     checkVolume();
   };
 
+  const speakingIntervalRef = useRef(null);
+
+  const simulateAvatarSpeaking = () => {
+    if (speakingIntervalRef.current) clearInterval(speakingIntervalRef.current);
+    speakingIntervalRef.current = setInterval(() => {
+      setAudioVolume(0.2 + Math.random() * 0.5);
+    }, 120);
+  };
+
+  const stopAvatarSpeaking = () => {
+    if (speakingIntervalRef.current) {
+      clearInterval(speakingIntervalRef.current);
+      speakingIntervalRef.current = null;
+    }
+    setAudioVolume(0);
+    setCoreState('idle');
+  };
+
+  const speakText = (text, isBn) => {
+    if (!('speechSynthesis' in window)) {
+      setCoreState('idle');
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+
+      if (isBn) {
+        const bnVoice = voices.find(v => 
+          v.lang.toLowerCase().includes('bn') || 
+          v.name.toLowerCase().includes('bangla') || 
+          v.name.toLowerCase().includes('bengali')
+        );
+        if (bnVoice) {
+          utterance.voice = bnVoice;
+          utterance.lang = bnVoice.lang;
+        } else {
+          const naturalVoice = voices.find(v => v.lang.startsWith('hi') || v.lang.startsWith('en'));
+          if (naturalVoice) utterance.voice = naturalVoice;
+        }
+      } else {
+        const enVoice = voices.find(v => 
+          v.name.includes('Guy') || 
+          v.name.includes('David') || 
+          v.name.includes('Google US English') || 
+          v.lang.startsWith('en')
+        );
+        if (enVoice) utterance.voice = enVoice;
+      }
+
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => {
+        setCoreState('speaking');
+        simulateAvatarSpeaking();
+      };
+
+      utterance.onend = () => {
+        stopAvatarSpeaking();
+      };
+
+      utterance.onerror = (e) => {
+        console.warn("SpeechSynthesis error:", e);
+        stopAvatarSpeaking();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn("Speech synthesis failed:", e);
+      stopAvatarSpeaking();
+    }
+  };
+
   const handleSendCommand = async (commandText) => {
     if (!commandText.trim()) return;
 
@@ -239,7 +316,14 @@ function App() {
     setIsProcessing(true);
     setCoreState('thinking');
 
+    const isBn = anyCharInBnRange(commandText);
+    let handled = false;
+
+    // 1. Try Python local backend
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
+
       const response = await fetch(`${API_BASE}/api/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,11 +332,15 @@ function App() {
           voice: settings.voice,
           api_key: settings.apiKey,
           provider: settings.provider
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
+        handled = true;
+        setBackendOnline(true);
         setLastToolUsed(data.tool_used);
 
         const botMsg = {
@@ -266,49 +354,29 @@ function App() {
         if (data.audio) {
           playSpeechAudio(data.audio);
         } else {
-          setCoreState('idle');
+          speakText(data.response, isBn);
         }
-      } else {
-        throw new Error('Backend responded with error');
       }
-    } catch (error) {
-      const isBn = anyCharInBnRange(commandText);
-      let fallbackText = '';
-      if (isBn) {
-        if (commandText.includes('কেমন') || commandText.includes('হ্যালো') || commandText.includes('সালাম') || commandText.includes('হাই')) {
-          fallbackText = `সালাম! স্টনিক জারভিস ওয়েব মোডে সক্রিয় আছে। সম্পূর্ণ লোকাল ওএস অটোমেশন ও এজ-টিটিএস এর জন্য পিসির ব্যাকএন্ড সার্ভার চালু রাখুন।`;
-        } else {
-          fallbackText = `আমি আপনার নির্দেশ গ্রহণ করেছি: "${commandText}"। ক্লাউড ওয়েব ইন্টারফেস সফলভাবে চলছে।`;
-        }
-      } else {
-        fallbackText = `Command received: "${commandText}". Running in Cloud Web Interface. For Windows OS automation, run local Python core on port 5800.`;
-      }
+    } catch (e) {
+      handled = false;
+      setBackendOnline(false);
+    }
+
+    // 2. If local backend wasn't reached (Web / GitHub Pages mode), use client AI Brain!
+    if (!handled) {
+      const brainResult = clientAIBrain.process(commandText, settings.apiKey, settings.provider);
+      setLastToolUsed(brainResult.tool);
 
       const botMsg = {
         role: 'assistant',
-        content: fallbackText,
+        content: brainResult.response,
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, botMsg]);
-
-      if ('speechSynthesis' in window) {
-        try {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(fallbackText);
-          utterance.lang = isBn ? 'bn-BD' : 'en-US';
-          setCoreState('speaking');
-          utterance.onend = () => setCoreState('idle');
-          utterance.onerror = () => setCoreState('idle');
-          window.speechSynthesis.speak(utterance);
-        } catch (e) {
-          setCoreState('idle');
-        }
-      } else {
-        setCoreState('idle');
-      }
-    } finally {
-      setIsProcessing(false);
+      speakText(brainResult.response, isBn);
     }
+
+    setIsProcessing(false);
   };
 
   const handleSaveSettings = (newSettings) => {

@@ -21,6 +21,8 @@ import SettingsModal from './components/SettingsModal';
 
 const API_BASE = 'http://127.0.0.1:5800';
 
+const anyCharInBnRange = (text) => /[\u0980-\u09FF]/.test(text);
+
 function App() {
   const [coreState, setCoreState] = useState('idle'); // idle, listening, thinking, speaking
   const [audioVolume, setAudioVolume] = useState(0);
@@ -270,14 +272,40 @@ function App() {
         throw new Error('Backend responded with error');
       }
     } catch (error) {
-      const fallbackText = `I have logged your command: "${commandText}". To execute OS tasks, please ensure the Python server is running on port 5800.`;
+      const isBn = anyCharInBnRange(commandText);
+      let fallbackText = '';
+      if (isBn) {
+        if (commandText.includes('কেমন') || commandText.includes('হ্যালো') || commandText.includes('সালাম') || commandText.includes('হাই')) {
+          fallbackText = `সালাম! স্টনিক জারভিস ওয়েব মোডে সক্রিয় আছে। সম্পূর্ণ লোকাল ওএস অটোমেশন ও এজ-টিটিএস এর জন্য পিসির ব্যাকএন্ড সার্ভার চালু রাখুন।`;
+        } else {
+          fallbackText = `আমি আপনার নির্দেশ গ্রহণ করেছি: "${commandText}"। ক্লাউড ওয়েব ইন্টারফেস সফলভাবে চলছে।`;
+        }
+      } else {
+        fallbackText = `Command received: "${commandText}". Running in Cloud Web Interface. For Windows OS automation, run local Python core on port 5800.`;
+      }
+
       const botMsg = {
         role: 'assistant',
         content: fallbackText,
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, botMsg]);
-      setCoreState('idle');
+
+      if ('speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(fallbackText);
+          utterance.lang = isBn ? 'bn-BD' : 'en-US';
+          setCoreState('speaking');
+          utterance.onend = () => setCoreState('idle');
+          utterance.onerror = () => setCoreState('idle');
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          setCoreState('idle');
+        }
+      } else {
+        setCoreState('idle');
+      }
     } finally {
       setIsProcessing(false);
     }

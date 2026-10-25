@@ -1,0 +1,100 @@
+{
+  "user_profile": {
+    "name": "শাওন",
+    "preferences": {},
+    "created_at": 1792836533.1688795
+  },
+  "facts": [],
+  "history": [
+    {
+      "role": "user",
+      "content": "hello",
+      "timestamp": 1792851845.728142
+    },
+    {
+      "role": "assistant",
+      "content": "Greetings, Commander. Neural core is synchronized and standing by. What task shall we execute today?",
+      "timestamp": 1792851845.767746
+    },
+    {
+      "role": "user",
+      "content": "please play the music",
+      "timestamp": 1792851857.0433261
+    },
+    {
+      "role": "assistant",
+      "content": "Searching YouTube for 'the music' and playing the top result.",
+      "timestamp": 1792851857.3980894
+    },
+    {
+      "role": "user",
+      "content": "what's your name",
+      "timestamp": 1792851864.6346312
+    },
+    {
+      "role": "assistant",
+      "content": "Understood, Commander. Analyzing 'what's your name'. You can instruct me to launch any application, search the web, or run system diagnostics at any time.",
+      "timestamp": 1792851864.6372116
+    },
+    {
+      "role": "user",
+      "content": "কেমন আছো?",
+      "timestamp": 1792902237.2371457
+    },
+    {
+      "role": "assistant",
+      "content": "সালাম ও শুভেচ্ছা, Commander। নিউরাল কোর সক্রিয় রয়েছে। আজ আপনার পিসিতে কী কাজ পরিচালনা করতে চান?",
+      "timestamp": 1792902237.2388403
+    },
+    {
+      "role": "user",
+      "content": "কেমন আছো?",
+      "timestamp": 1792902240.9498565
+    },
+    {
+      "role": "assistant",
+      "content": "সালাম ও শুভেচ্ছা, Commander। নিউরাল কোর সক্রিয় রয়েছে। আজ আপনার পিসিতে কী কাজ পরিচালনা করতে চান?",
+      "timestamp": 1792902240.9512682
+    },
+    {
+      "role": "user",
+      "content": "পিসির অবস্থা কেমন?",
+      "timestamp": 1792902240.9518244
+    },
+    {
+      "role": "assistant",
+      "content": "সকল সিস্টেম চমৎকারভাবে সচল রয়েছে। বর্তমানে CPU ব্যবহার হচ্ছে 13.5%, এবং RAM ব্যবহৃত হচ্ছে 93.6%। ব্যাটারি ব্যাকআপ 99% অবশিষ্ট আছে।",
+      "timestamp": 1792902241.054208
+    },
+    {
+      "role": "user",
+      "content": "Hello how are you?",
+      "timestamp": 1792902241.0550702
+    },
+    {
+      "role": "assistant",
+      "content": "Greetings, Commander. Neural core is synchronized and standing by. What task shall we execute today?",
+      "timestamp": 1792902241.055784
+    },
+    {
+      "role": "user",
+      "content": "ইউটিউবে রবীন্দ্রসংগীত বাজাও",
+      "timestamp": 1792902245.3423712
+    },
+    {
+      "role": "assistant",
+      "content": "ইউটিউবে 'রবীন্দ্রসংগীত' অনুসন্ধান করে ভিডিও চালু করে দিচ্ছি।",
+      "timestamp": 1792902245.4425662
+    },
+    {
+      "role": "user",
+      "content": "আমার নাম শাওন",
+      "timestamp": 1792902245.443839
+    },
+    {
+      "role": "assistant",
+      "content": "বুঝেছি। এখন থেকে আমি আপনাকে শাওন নামে সম্বোধন করব।",
+      "timestamp": 1792902245.4460166
+    }
+  ]
+}

@@ -90,17 +90,21 @@ const CommandConsole = ({
                   onClick={() => onAudioPlay && onAudioPlay(msg.audio)}
                   style={{ 
                     marginTop: '8px', 
-                    display: 'flex', 
+                    display: 'inline-flex', 
                     alignItems: 'center', 
                     gap: '6px', 
-                    fontSize: '10px', 
+                    fontSize: '11px', 
                     color: '#00f3ff', 
-                    background: 'none', 
-                    border: 'none', 
-                    cursor: 'pointer' 
+                    background: 'rgba(0, 243, 255, 0.1)', 
+                    border: '1px solid rgba(0, 243, 255, 0.35)', 
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
                   }}
+                  title="ক্লিক করে এই কণ্ঠটি শুনুন"
                 >
-                  <Volume2 className="w-3.5 h-3.5" /> Replay Voice
+                  <Volume2 className="w-3.5 h-3.5" /> 🔊 কথা শুনুন (Play Voice)
                 </button>
               )}
             </div>

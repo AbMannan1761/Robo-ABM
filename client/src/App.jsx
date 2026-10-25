@@ -159,73 +159,43 @@ function App() {
     }
   };
 
-  const playSpeechAudio = (audioBase64) => {
-    if (!audioBase64) return;
+  const playSpeechAudio = (audioSource) => {
+    if (!audioSource) return;
 
     try {
-      if (!audioContextRef.current) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        audioContextRef.current = new AudioCtx();
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 64;
-      }
-
       if (currentAudioElementRef.current) {
         currentAudioElementRef.current.pause();
+        currentAudioElementRef.current = null;
       }
 
-      const audio = new Audio(audioBase64);
+      const audio = new Audio(audioSource);
       currentAudioElementRef.current = audio;
-
-      if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
-      }
-
-      try {
-        const source = audioContextRef.current.createMediaElementSource(audio);
-        source.connect(analyserRef.current);
-        analyserRef.current.connect(audioContextRef.current.destination);
-      } catch (e) {
-        // already connected
-      }
 
       audio.onplay = () => {
         setCoreState('speaking');
-        monitorAudioVolume();
+        simulateAvatarSpeaking();
       };
 
       audio.onended = () => {
-        setCoreState('idle');
-        setAudioVolume(0);
+        stopAvatarSpeaking();
       };
 
-      audio.play().catch(e => console.warn("Audio autoplay blocked:", e));
+      audio.onerror = (e) => {
+        console.warn("Audio playback error:", e);
+        stopAvatarSpeaking();
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => {
+          console.warn("Audio play blocked by browser:", e);
+          stopAvatarSpeaking();
+        });
+      }
     } catch (e) {
-      console.warn("Audio analysis error:", e);
+      console.warn("Audio error:", e);
+      stopAvatarSpeaking();
     }
-  };
-
-  const monitorAudioVolume = () => {
-    if (!analyserRef.current) return;
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-    const checkVolume = () => {
-      analyserRef.current.getByteFrequencyData(dataArray);
-      let sum = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i];
-      }
-      const avg = sum / dataArray.length;
-      setAudioVolume(avg / 128);
-
-      if (currentAudioElementRef.current && !currentAudioElementRef.current.paused) {
-        requestAnimationFrame(checkVolume);
-      } else {
-        setAudioVolume(0);
-      }
-    };
-
-    checkVolume();
   };
 
   const speakingIntervalRef = useRef(null);
@@ -247,61 +217,13 @@ function App() {
   };
 
   const speakText = (text, isBn) => {
-    if (!('speechSynthesis' in window)) {
-      setCoreState('idle');
-      return;
-    }
+    const cleanText = text.replace(/[*#_`]/g, '').trim();
+    if (!cleanText) return;
 
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices();
+    const lang = isBn ? 'bn' : 'en';
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText.slice(0, 180))}&tl=${lang}&client=tw-ob`;
 
-      if (isBn) {
-        const bnVoice = voices.find(v => 
-          v.lang.toLowerCase().includes('bn') || 
-          v.name.toLowerCase().includes('bangla') || 
-          v.name.toLowerCase().includes('bengali')
-        );
-        if (bnVoice) {
-          utterance.voice = bnVoice;
-          utterance.lang = bnVoice.lang;
-        } else {
-          const naturalVoice = voices.find(v => v.lang.startsWith('hi') || v.lang.startsWith('en'));
-          if (naturalVoice) utterance.voice = naturalVoice;
-        }
-      } else {
-        const enVoice = voices.find(v => 
-          v.name.includes('Guy') || 
-          v.name.includes('David') || 
-          v.name.includes('Google US English') || 
-          v.lang.startsWith('en')
-        );
-        if (enVoice) utterance.voice = enVoice;
-      }
-
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-
-      utterance.onstart = () => {
-        setCoreState('speaking');
-        simulateAvatarSpeaking();
-      };
-
-      utterance.onend = () => {
-        stopAvatarSpeaking();
-      };
-
-      utterance.onerror = (e) => {
-        console.warn("SpeechSynthesis error:", e);
-        stopAvatarSpeaking();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn("Speech synthesis failed:", e);
-      stopAvatarSpeaking();
-    }
+    playSpeechAudio(audioUrl);
   };
 
   const handleSendCommand = async (commandText) => {
@@ -367,13 +289,18 @@ function App() {
       const brainResult = clientAIBrain.process(commandText, settings.apiKey, settings.provider);
       setLastToolUsed(brainResult.tool);
 
+      const lang = isBn ? 'bn' : 'en';
+      const cleanSummary = brainResult.response.replace(/[*#_`]/g, '').trim().slice(0, 180);
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanSummary)}&tl=${lang}&client=tw-ob`;
+
       const botMsg = {
         role: 'assistant',
         content: brainResult.response,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        audio: audioUrl
       };
       setMessages(prev => [...prev, botMsg]);
-      speakText(brainResult.response, isBn);
+      playSpeechAudio(audioUrl);
     }
 
     setIsProcessing(false);
